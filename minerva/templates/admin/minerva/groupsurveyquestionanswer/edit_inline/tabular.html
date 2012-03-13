@@ -1,0 +1,10 @@
+{% include "admin/edit_inline/tabular.html" %}
+
+<!--
+This import is here to ensure that the `document.ready` handler contained
+within groups.js is executed after the `document.ready` handler in
+`tabular.html`. This is because it is the `document.ready` handler in
+`tabular.html` which creates the 'Add another Group Survey Question Answer'
+button, which we need to attach a handler to too.
+ -->
+<script type="text/javascript" src="/static/minerva/js/admin/groupsurveyquestionanswer.js"></script>
