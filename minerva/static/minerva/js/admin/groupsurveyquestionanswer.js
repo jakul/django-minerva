@@ -11,31 +11,42 @@
 
 (function($) {
     $(document).ready(function($) {
-    	var availableTags = ['True', 'False']
-    	                     
+    	
     	function setupAutocomplete(selector) {
-    		var $inputs = $(selector);
-    		console.log($inputs)
-        	$inputs.autocomplete({
-        		source: availableTags,
-        		minLength: 0
-        	});
+    		$(selector).each(function(i, el){
+    			var $tr = $(el);
+    			var $answer = $('td.answer input', $tr)
+    			var $question = $('td.survey_question select', $tr)
+    			var autocompleteOptions = [];
+    			var selectedQuestionId = $('td.survey_question select', $tr).val();
 
-        	$inputs.bind('dblclick.custom', function(event, ui) {
-        		console.log('a', event.target)
-                $(event.target).autocomplete('search', '')
-            });
+    			if (selectedQuestionId != "") {
+    				autocompleteOptions = Onzo.GroupSurveyQuestionAnswer.autoCompleteChoices[selectedQuestionId]	
+    			}
+    			
+    			$answer.autocomplete({
+            		source: autocompleteOptions,
+            		minLength: 0
+            	});
+            	$answer.bind('dblclick.custom', function(event, ui) {
+                    $(event.target).autocomplete('search', '')
+                });
+            	$question.bind('change', function(event, ui) {
+            		$answer.autocomplete('destroy')
+            		setupAutocomplete($tr);
+                });
+    			
+    		});
     	}
     	
     	// add the autocomplete to the existing rows
-    	setupAutocomplete('#groupsurveyquestionanswer_set-group .dynamic-groupsurveyquestionanswer_set td.answer input');
+    	setupAutocomplete('#groupsurveyquestionanswer_set-group tr.dynamic-groupsurveyquestionanswer_set');
     	
     	// ensure any new rows have the autocomplete
         $('#groupsurveyquestionanswer_set-group tr.add-row a').bind(
     	    'click.custom', //custom click event
     	    function(event) {
-    	    	setupAutocomplete('#groupsurveyquestionanswer_set-group .dynamic-groupsurveyquestionanswer_set:last td.answer input');
-
+    	    	setupAutocomplete('#groupsurveyquestionanswer_set-group tr.dynamic-groupsurveyquestionanswer_set:visible:last');
 	    	}
 	    );
     });

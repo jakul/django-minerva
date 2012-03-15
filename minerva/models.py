@@ -26,7 +26,7 @@ class SurveyQuestion(models.Model):
     allowed_answers = models.CharField(max_length=8000)
     
     def __unicode__(self):
-        return self.id
+        return self.display_text
     
     def save(self, *args, **kwargs):
         if self.id in (None, ''):
@@ -54,7 +54,7 @@ class GroupFactValue(models.Model):
         
     def __unicode__(self):
         return '%s: %s: %s' % (
-             self.group.name, self.fact.display_text, self.value
+             self.group.display_name, self.fact.display_text, self.value
         )
     
     
@@ -68,17 +68,25 @@ class GroupSurveyQuestionAnswer(models.Model):
         
     def __unicode__(self):
         return '%s: %s: %s' % (
-             self.group.name, self.survey_question.display_text, self.answer
+             self.group.display_name, self.survey_question.display_text, self.answer
         )
         
     
 class Group(models.Model):
-    name = models.CharField(max_length=60, primary_key=True)
+    id = models.SlugField(
+        primary_key=True, max_length=60, blank=False, editable=False
+    )
+    display_name = models.CharField(max_length=60)
     facts = models.ManyToManyField(Fact, through='GroupFactValue')
     survey_answers = models.ManyToManyField(
         SurveyQuestion, through='GroupSurveyQuestionAnswer'
     )
     
     def __unicode__(self):
-        return self.name
+        return self.display_name
+    
+    def save(self, *args, **kwargs):
+        if self.id in (None, ''):
+            self.id = slugify(self.display_name)
+        return super(Group, self).save(*args, **kwargs)
     

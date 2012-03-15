@@ -2,6 +2,7 @@ from django.contrib import admin
 from minerva.models import Fact, GroupFactValue, SurveyQuestion,\
     GroupSurveyQuestionAnswer, Group
 from minerva.forms import SurveyQuestionForm, GroupSurveyQuestionAnswerForm
+import json
 
 
 class FactAdmin(admin.ModelAdmin):
@@ -38,18 +39,21 @@ class GroupSurveyQuestionAnswerInline(admin.TabularInline):
 class GroupAdmin(admin.ModelAdmin):
     inlines = [GroupFactValueInline, GroupSurveyQuestionAnswerInline]
     template = 'admin/minerva/group/change_form.html'
+    
+    
+    def change_view(self, *args, **kwargs):
+        autocomplete_choices = {}
+        for question_id, allowed_answers in \
+        SurveyQuestion.objects.all().values_list('id', 'allowed_answers'):
+            # allowed_answers is already encoded in JSON, so we need to decode
+            # it to prevent doubled encoding
+            autocomplete_choices[question_id] = json.loads(allowed_answers)
+        
+        extra_context = kwargs.pop('extra_context', {})
+        extra_context['autocomplete_choices'] = json.dumps(autocomplete_choices)        
+        kwargs['extra_context'] = extra_context
+        return super(GroupAdmin, self).change_view(*args, **kwargs)
 
-    
-#    def get_media(self):
-#        from django.conf import settings
-#        static_url = getattr(settings, 'STATIC_URL')
-#        form_media = self._media()
-##        import ipdb
-##        ipdb.set_trace()
-#        form_media.add_js((static_url + '/minerva/js/admin/group.js',))
-#        return form_media
-#    media = property(get_media)
-    
     
 admin.site.register(Fact, FactAdmin)
 admin.site.register(SurveyQuestion, SurveyQuestionAdmin)

@@ -1,10 +1,26 @@
 {% extends "admin/change_form.html" %}
 
+
 {% block extrahead %}{{ block.super }}
 <link rel="stylesheet" type="text/css" href="/static/minerva/css/jquery-ui/ui-lightness/jquery-ui-1.8.14.custom.css" />
 
 <script type="text/javascript">
 	jQuery = jQuery || django.jQuery.noConflict(false);
+
+	window.Onzo = window.Onzo || {};
+
+	// TODO: this is bad. It doesn't get update if (for example) the user adds
+	// a new Group Survery Question Answer using the '+' link
+	Onzo.GroupSurveyQuestionAnswer = {};
+	Onzo.GroupSurveyQuestionAnswer.autoCompleteChoices = {};
+	// {{ autocomplete_choices|safe }}
+	{% if autocomplete_choices %}
+	Onzo.GroupSurveyQuestionAnswer.autoCompleteChoices = {{ autocomplete_choices|safe }};
+	{% endif %}
+
+	
+	
+	//values = {{ VALUES }};
 </script>
 <script type="text/javascript" src="/static/minerva/js/lib/jquery-ui-1.8.16.custom.min.js"></script>
 

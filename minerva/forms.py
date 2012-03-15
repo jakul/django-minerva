@@ -72,6 +72,7 @@ class GroupSurveyQuestionAnswerForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super(GroupSurveyQuestionAnswerForm, self).__init__(*args, **kwargs)
+        self.fields['answer'].widget.attrs['class'] += ' autocomplete'
         
     def clean_name(self):
         raise ValidationError('no')
