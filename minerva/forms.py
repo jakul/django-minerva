@@ -8,64 +8,80 @@ from django.utils.translation import ugettext_lazy as _
 _TYPE_OF_ANSWER_CHOICES = (
     ('', '---------'),
     ('multiple_choice_single_answer', 'Multiple Choice (single answer)'),
+    ('multiple_choice_multiple_answer', 'Multiple Choice (multiple answer)'),
+    ('boolean', 'Yes or No'),
+    ('integer_range', 'Integer Range'),
 )
 
+class _MyModelForm(forms.ModelForm):
+        
+    def add_error(self, field, msg):
+        if field not in self._errors:
+            self._errors[field] = self.error_class()
+            
+        self._errors[field].append(msg)
+        try:
+            del self.cleaned_data[field]
+        except KeyError:
+            # item not in cleaned_data yet
+            pass
 
-class SurveyQuestionForm(forms.ModelForm):
+class SurveyQuestionForm(_MyModelForm):
     type_of_answer = forms.ChoiceField(choices=_TYPE_OF_ANSWER_CHOICES)
-    answer_1 = forms.CharField(required=False)
-    answer_2 = forms.CharField(required=False)
-    answer_3 = forms.CharField(required=False)
-    answer_4 = forms.CharField(required=False)
-    answer_5 = forms.CharField(required=False)
-    answer_6 = forms.CharField(required=False)
-    answer_7 = forms.CharField(required=False)
-    answer_8 = forms.CharField(required=False)
-    answer_9 = forms.CharField(required=False)
-    answer_10 = forms.CharField(required=False)
-    answer_11 = forms.CharField(required=False)
-    answer_12 = forms.CharField(required=False)
-    answer_13 = forms.CharField(required=False)
-    answer_14 = forms.CharField(required=False)
-    answer_15 = forms.CharField(required=False)
 
     class Meta:
         model = SurveyQuestion
-        exclude = ['allowed_answers',]
+        
+    def integer_range_valid(self, min_value, max_value):
+        if max_value <= min_value:
+            return False
+        return True
     
-    def __init__(self, *args, **kwargs):    
-        super(SurveyQuestionForm, self).__init__(*args, **kwargs)
-        answers = self._decode_answers()
-        for i in range(len(answers)):
-            self.initial['answer_%d' % (i+1)] = answers[i]
-
-    def _decode_answers(self):
-        if self.instance and self.instance.allowed_answers not in EMPTY_VALUES:
-            answers = json.loads(self.instance.allowed_answers)
-            return answers
-        return []
+    def fields_have_value(self, *fieldnames):
+        missing_field = False
+        for fieldname in fieldnames:
+            value = self.cleaned_data.get(fieldname, '')
+            if value in EMPTY_VALUES:
+                self.add_error(
+                    fieldname, self.fields[fieldname].error_messages['required']
+                )
+                missing_field = True
+        return not missing_field
+    
+    def clean(self):
+        type_of_answer = self.cleaned_data.get('type_of_answer', '')
+        if type_of_answer.startswith('multiple_choice'):
             
-    def _encode_answers(self):
-        answers = [
-            (key, val) for key, val in self.cleaned_data.items() 
-            if key.startswith('answer') and val != ''
-        ]
-        
-        # sort by key
-        answers = sorted(answers, key=lambda (key, val): key)
-        
-        # remove the keys
-        answers = [val for (key, val) in answers]
-        
-        # encode to JSON        
-        return json.dumps(answers)
+            # Check that the minimum number of values has been provided
+            for field in ('answer_1', 'answer_2'):
+                value = self.cleaned_data.get(field, '')
+                # Check that a value has been provided
+                if value in EMPTY_VALUES:
+                    self.add_error(
+                        field, self.fields[field].error_messages['required']
+                    )
+            
+        elif type_of_answer == 'integer_range':
+            # Check that a value has been provided
+            all_fields_present = self.fields_have_value('min_value', 'max_value')
+            if not all_fields_present:
+                return self.cleaned_data
+                    
+            # Ensure a valid range has been entered
+            # TODO: validate min value is >= 0
+            min_value = self.cleaned_data.get('min_value', '')
+            max_value = self.cleaned_data.get('max_value', '')
+            if not self.integer_range_valid(min_value, max_value):
+                self.add_error('min_value', 'Enter a valid range')
+                self.add_error('max_value', 'Enter a valid range')
+                
+        return self.cleaned_data
 
     def save(self, *args, **kwargs):
-        self.instance.allowed_answers = self._encode_answers()
         return super(SurveyQuestionForm, self).save(*args, **kwargs)       
     
     
-class GroupSurveyQuestionAnswerForm(forms.ModelForm):
+class GroupSurveyQuestionAnswerForm(_MyModelForm):
     default_error_messages = {
         'invalid': _(u'Enter a valid value.'),
     }
@@ -73,19 +89,12 @@ class GroupSurveyQuestionAnswerForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(GroupSurveyQuestionAnswerForm, self).__init__(*args, **kwargs)
         self.fields['answer'].widget.attrs['class'] += ' autocomplete'
-        
-    def clean_name(self):
-        raise ValidationError('no')
-
+    
     def clean(self):
         # Ensure that the entered answer is valid
         if not self.cleaned_data['survey_question'].is_valid_answer(
         self.cleaned_data['answer']):
-            if 'answer' not in self._errors:
-                self._errors['answer'] = self.error_class()
-                
             msg = self.default_error_messages['invalid']
-            self._errors['answer'].append(msg)
-            del self.cleaned_data['answer']
+            self.add_error('answer', msg)
             
         return self.cleaned_data
